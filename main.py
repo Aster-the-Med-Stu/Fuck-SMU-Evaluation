@@ -7,7 +7,7 @@ Created on Sat Jun 23 20:22:22 2019
 Always believe something pawsome is about to happen🐾🐾
 """
 
-import requests, re
+import requests, regex, json
 from datetime import date, timedelta  #, datetime
 # Excel 的习惯
 # from urllib.parse import quote as encodeurl
@@ -15,7 +15,7 @@ from datetime import date, timedelta  #, datetime
 
 session = requests.Session()
 cookies = {
-    'JSESSIONID': '别忘了填上！！',
+    'JSESSIONID': '别忘了填上！！！',
 }
 
 headers = {
@@ -98,18 +98,21 @@ def GetQuestionInfo(cookies, headers, params):
 
 def ParseEvaluation(HTML):
     # 参考：https://www.cnblogs.com/deerchao/archive/2006/08/24/zhengzhe30fengzhongjiaocheng.html
-    regex_wt = re.compile("(?<=wt = JSON\.parse\(')\[(.*?)\]")
-    wt = regex_wt.findall(question_HTML)
-    regex_wtxm = re.compile("(?<=wtxm = JSON\.parse\(')\[(.*?)\]")
-    wtxm = regex_wtxm.findall(HTML)
-    regex_wj = re.compile("(?<=wj = JSON\.parse\(')\[(.*?)\]")
-    wj = regex_wj.findall(HTML)
+    wt = json.loads(
+        regex.search(r"(?<=wt = JSON\.parse\(')\[(.*?)\]",
+                     question_HTML).group())
+    wtxm = json.loads(
+        regex.search(r"(?<=wtxm = JSON\.parse\(')\[(.*?)\]", HTML).group())
+    wj = json.loads(
+        regex.search(r"(?<=wj = \$\.parseJSON\(')\[(.*?)\]", HTML).group())
     return wt, wj, wtxm
 
 
 def EvaluateTeacher(result_tuple, evaluation_info):
     pass
     wt, wj, wjxm = result_tuple
+    #print(type(wj))
+    #print(wj)
     post_data = {
         'wjdm': wj[0]['wjdm'],
         'pjdxlxdm': '1',
@@ -160,9 +163,11 @@ def PostEvaluation(cookies, headers, data):
                              headers=headers,
                              cookies=cookies,
                              data=data)
-    if response == 1:
+    if response.text == "1":
         return
     else:
+        print(response.text)
+        print(type(response.text))
         print("Something is wrong.....")
 
 
@@ -180,25 +185,28 @@ if __name__ == '__main__':
     print('''
           Author: Aster-the-Med-Stu
           如果有任何问题的话，麻烦到 GitHub 开个 issue~
-          另外，如果您对某节课真的有意见的话，请提前评教，因为本脚本会自动跳过已经评价过的课程。
+          另外，如果您对某节课真的有意见的话，请提前评教，因为本脚本会自动跳过已经评价过的课程。\n
           ''')
-    #    begin_date = date(*map(int,
-    #                           input("请输入自动评教起始日期（格式为 YYYY-MM-DD）：\n").split('-')))
-    #    end_date = date(*map(int, input("请输入结束日期：\n").split('-')))
+    begin_date = date(*map(int,
+                           input("请输入自动评教起始日期（格式为 YYYY-MM-DD）：\n").split('-')))
+    end_date = date(*map(int, input("请输入结束日期：\n").split('-')))
 
     # 测试用
-    begin_date = date(*map(int, "2019-06-27".split('-')))
-    end_date = date(*map(int, "2019-06-27".split('-')))
+    # begin_date = date(*map(int, "2019-06-26".split('-')))
+    # end_date = date(*map(int, "2019-06-26".split('-')))
 
     for someday in perdelta(begin_date, end_date, timedelta(days=1)):
         evaluation_info_for_someday = GetEvaluationInfo(
             cookies, headers, someday)
+        print(someday)
         # 判断当天是否没课
         if evaluation_info_for_someday is None:
-            break
+            print("evaluation_info_for_someday is empty")
+            continue
         else:
             for d in evaluation_info_for_someday:
                 question_HTML = GetQuestionInfo(cookies, headers, d).text
-                PostEvaluation(
-                    cookies, headers,
-                    EvaluateTeacher(ParseEvaluation(question_HTML), d))
+                parse_result = ParseEvaluation(question_HTML)
+                PostEvaluation(cookies, headers,
+                               EvaluateTeacher(parse_result, d))
+    
