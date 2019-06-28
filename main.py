@@ -9,14 +9,12 @@ Always believe something pawsome is about to happen🐾🐾
 
 import requests, regex, json
 from datetime import date, timedelta  #, datetime
+from getch import pause
 # Excel 的习惯
 # from urllib.parse import quote as encodeurl
 # 貌似用不上嘞
 
 session = requests.Session()
-cookies = {
-    'JSESSIONID': '别忘了填上！！！',
-}
 
 headers = {
     'User-Agent':
@@ -98,6 +96,7 @@ def GetQuestionInfo(cookies, headers, params):
 
 def ParseEvaluation(HTML):
     # 参考：https://www.cnblogs.com/deerchao/archive/2006/08/24/zhengzhe30fengzhongjiaocheng.html
+    # PCRE 和 python 包不完全兼容这点坑我好久，这里不该用 fullmatch
     wt = json.loads(
         regex.search(r"(?<=wt = JSON\.parse\(')\[(.*?)\]",
                      question_HTML).group())
@@ -113,6 +112,7 @@ def EvaluateTeacher(result_tuple, evaluation_info):
     wt, wj, wjxm = result_tuple
     #print(type(wj))
     #print(wj)
+    
     post_data = {
         'wjdm': wj[0]['wjdm'],
         'pjdxlxdm': '1',
@@ -187,9 +187,12 @@ if __name__ == '__main__':
           如果有任何问题的话，麻烦到 GitHub 开个 issue~
           另外，如果您对某节课真的有意见的话，请提前评教，因为本脚本会自动跳过已经评价过的课程。\n
           ''')
+    cookies = {
+        'JSESSIONID': input('请输入 JSESSIONID（需要使用浏览器的开发者工具）：\n'),
+    }
     begin_date = date(*map(int,
-                           input("请输入自动评教起始日期（格式为 YYYY-MM-DD）：\n").split('-')))
-    end_date = date(*map(int, input("请输入结束日期：\n").split('-')))
+                           input('请输入自动评教起始日期（格式为 YYYY-MM-DD）：\n').split('-')))
+    end_date = date(*map(int, input('请输入结束日期：\n').split('-')))
 
     # 测试用
     # begin_date = date(*map(int, "2019-06-26".split('-')))
@@ -198,15 +201,18 @@ if __name__ == '__main__':
     for someday in perdelta(begin_date, end_date, timedelta(days=1)):
         evaluation_info_for_someday = GetEvaluationInfo(
             cookies, headers, someday)
-        print(someday)
         # 判断当天是否没课
         if evaluation_info_for_someday is None:
-            print("evaluation_info_for_someday is empty")
+            print(someday.strftime('%Y-%m-%d')+'没有需要评教的课程', end='\r')
             continue
         else:
+            print('正在对'+someday.strftime('%Y-%m-%d')+'的课程进行评教',end='\r')
             for d in evaluation_info_for_someday:
                 question_HTML = GetQuestionInfo(cookies, headers, d).text
                 parse_result = ParseEvaluation(question_HTML)
                 PostEvaluation(cookies, headers,
                                EvaluateTeacher(parse_result, d))
-    
+    print(
+        '\n\n如果前面没有报错的话，评教应该已经完成。请不要忘记再到教务系统上看一眼评教是否完成。\n如果本脚本帮助到了您，不妨在 GitHub 上赏个 Star？\n'
+    )
+    pause('请按任意键退出……')
