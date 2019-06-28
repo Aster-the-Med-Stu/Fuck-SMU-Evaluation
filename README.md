@@ -1,6 +1,6 @@
 # Fuck-SMU-Evaluation
 
-## Still Under Working, almost done
+已经可用，目前的问题在于评教的问题回答是写死的，不过我暂时不想管他了，毕竟能用，不是吗？
 
 辣鸡评教系统
 
